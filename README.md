@@ -52,9 +52,111 @@ CREATE TABLE members (
   join_date DATE
 );
  
- 
+------------ #QUESTIONS------------------ 
+
+           
 INSERT INTO members (customer_id, join_date)
 VALUES  ('A', '2021-01-07'),
   ('B', '2021-01-09');
 
+-- 1. What is the total amount each customer spent at the restaurant?
+select s.customer_id, sum(m.price) 
+from sales s 
+inner join menu m 
+on s.product_id = m.product_id
+group by s.customer_id;
+
+-- 2. How many days has each customer visited the restaurant?
+select customer_id,count(distinct order_date) as visit_days
+from sales
+group by customer_id;
+
+-- 3. What was the first item from the menu purchased by each customer?
+with rnk as (
+select s.customer_id, s.order_date, s.product_id,
+m.product_name,
+row_number() over (partition by s.customer_id order by s.order_date) as rnum
+from sales s inner join menu m 
+on s.product_id = m.product_id
+)
+select customer_id, product_name from rnk where rnum = 1;
+
+
+
+-- 4. What is the most purchased item on the menu and how many times was it
+-- purchased by all customers?
+SELECT
+    m.product_name,
+    COUNT(*) AS times_purchased
+FROM sales s
+JOIN menu m
+    ON s.product_id = m.product_id
+GROUP BY m.product_name
+ORDER BY times_purchased DESC
+LIMIT 1;
+
+
+-- 5. Which item was the most popular for each customer?
+WITH customer_item_counts AS (
+  SELECT s.customer_id,
+         s.product_id,
+         COUNT(*) AS order_count,
+         RANK() OVER (PARTITION BY s.customer_id ORDER BY COUNT(*) DESC) AS r_ank
+  FROM sales s
+  GROUP BY s.customer_id, s.product_id
+)
+SELECT c.customer_id,
+       m.product_name,
+       c.order_count
+FROM customer_item_counts c
+JOIN menu m ON c.product_id = m.product_id
+WHERE c.r_ank = 1;
+
+
+-- 6. Which item was purchased first by the customer after they became a member?
+with new as (
+SELECT a.customer_id, c.product_name, a.order_date,
+RANK() OVER (PARTITION BY a.customer_id ORDER BY a.order_date) AS rnkng
+FROM sales as a JOIN members as b  ON a.customer_id = b.customer_id
+JOIN menu c  ON a.product_id = c.product_id
+WHERE a.order_date >= b.join_date
+) 
+select * from new where rnkng = 1;
+
+
+-- 7. What is the total items and amount spent for each member before they became a member?
+SELECT s.customer_id,
+       COUNT(*) AS total_items,
+       SUM(mn.price) AS total_amount
+FROM sales s
+JOIN members mb ON s.customer_id = mb.customer_id
+JOIN menu mn ON s.product_id = mn.product_id
+WHERE s.order_date < mb.join_date
+GROUP BY s.customer_id
+order by customer_id;
+
+-- 8. If each $1 spent equates to 10 points and sushi has a 2x points multiplier -
+-- how many points would each customer have? (case when)
+SELECT customer_id,
+       SUM(CASE
+               WHEN product_name = 'sushi' THEN price*20
+               ELSE price*10
+           END) AS customer_points
+FROM menu AS m
+INNER JOIN sales AS s ON m.product_id = s.product_id
+GROUP BY customer_id
+ORDER BY customer_id;
+
+
+-- 9. What percentage of total revenue does each customer contribute?
+
+-- 10. Which customer spent the most money in a single day?
+
+– 11. For each customer, what is their longest streak of consecutive visit days?
+
+– 12. Find the customer's favorite item before membership and after membership
+
+– 13. Calculate the running total spend for each customer over time
+
+– 14. Which product generated the highest percentage of revenue for each customer?
 
